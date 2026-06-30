@@ -14,11 +14,20 @@ GET /api/history          — last 180 rows of raw sensor data (~3 hours)
 GET /api/health/history   — last 50 health score readings from in-memory buffer
 """
 
+import sys
+import traceback
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+logger.info("Starting Bridge Health Monitor API...")
+logger.info(f"Python version: {sys.version}")
+
 # ---------------------------------------------------------------------------
 # Auto-install required packages
 # ---------------------------------------------------------------------------
 import subprocess
-import sys
 
 _REQUIRED = [
     "fastapi",
@@ -55,7 +64,11 @@ def _ensure_packages():
             )
 
 
-_ensure_packages()
+try:
+    _ensure_packages()
+except Exception as e:
+    logger.error(f"STARTUP ERROR running _ensure_packages: {e}")
+    traceback.print_exc()
 
 # ---------------------------------------------------------------------------
 # Wrap heavy ML packages in try/except so server doesn't crash if missing
@@ -232,13 +245,14 @@ XGB_WEIGHT = 0.60
 # Initialise global prediction models (loaded once at server startup)
 # ---------------------------------------------------------------------------
 try:
-    print("[server] Loading prediction models (Pipeline B) …")
+    logger.info("[server] Loading prediction models (Pipeline B) …")
     _rf_model = joblib.load(RF_MODEL_PATH)
     _rf_scaler = joblib.load(RF_SCALER_PATH)
     _xgb_model = joblib.load(XGB_MODEL_PATH)
     _xgb_scaler = joblib.load(XGB_SCALER_PATH)
 except Exception as e:
-    print(f"[server] Warning: Could not load prediction models (Pipeline B): {e}")
+    logger.error(f"[server] Warning: Could not load prediction models (Pipeline B): {e}")
+    traceback.print_exc()
     _rf_model = None
     _rf_scaler = None
     _xgb_model = None
@@ -713,25 +727,39 @@ class BridgeSimulator:
         return self.latest_data
 
 
-print("[server] Loading sensor dataset …")
-_sensor_df = pd.read_csv(SENSOR_DATA_PATH, parse_dates=["timestamp"])
-print("[server] Initialising Bridge Simulators …")
-_simulators = {
-    1: BridgeSimulator(1, "Brahmaputra Main Bridge", 1.0, _sensor_df),
-    2: BridgeSimulator(2, "Saraighat Rail Bridge", 1.4, _sensor_df),
-    3: BridgeSimulator(3, "Kamakhya Road Bridge", 1.7, _sensor_df),
-}
+try:
+    logger.info("[server] Loading sensor dataset …")
+    _sensor_df = pd.read_csv(SENSOR_DATA_PATH, parse_dates=["timestamp"])
+except Exception as e:
+    logger.error(f"STARTUP ERROR loading sensor dataset from {SENSOR_DATA_PATH}: {e}")
+    traceback.print_exc()
+    _sensor_df = pd.DataFrame()
 
-
+try:
+    logger.info("[server] Initialising Bridge Simulators …")
+    _simulators = {
+        1: BridgeSimulator(1, "Brahmaputra Main Bridge", 1.0, _sensor_df),
+        2: BridgeSimulator(2, "Saraighat Rail Bridge", 1.4, _sensor_df),
+        3: BridgeSimulator(3, "Kamakhya Road Bridge", 1.7, _sensor_df),
+    }
+except Exception as e:
+    logger.error(f"STARTUP ERROR initialising Bridge Simulators: {e}")
+    traceback.print_exc()
+    _simulators = {}
 
 dynamic_bridges = {}
 
-traffic_monitors = {
-    1: TrafficMonitor(1),
-    2: TrafficMonitor(2),
-    3: TrafficMonitor(3),
-}
-print("[Traffic] TrafficMonitor initialized for 3 bridges")
+try:
+    traffic_monitors = {
+        1: TrafficMonitor(1),
+        2: TrafficMonitor(2),
+        3: TrafficMonitor(3),
+    }
+    logger.info("[Traffic] TrafficMonitor initialized for 3 bridges")
+except Exception as e:
+    logger.error(f"STARTUP ERROR initialising TrafficMonitors: {e}")
+    traceback.print_exc()
+    traffic_monitors = {}
 
 # Proxy classes to support legacy/seeding signature: traffic_state[bridge_id]["crossings"].append(event)
 class CrossingsProxy:
@@ -784,28 +812,34 @@ def ensure_simulator_exists(bridge_id: int, mark_active: bool = False):
 # ---------------------------------------------------------------------------
 # FastAPI application
 # ---------------------------------------------------------------------------
-app = FastAPI(
-    title="Bridge SHM API",
-    description="Real-time bridge structural health monitoring backend",
-    version="1.0.0",
-)
+try:
+    app = FastAPI(
+        title="Bridge SHM API",
+        description="Real-time bridge structural health monitoring backend",
+        version="1.0.0",
+    )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "*",  # fallback for deployed frontends
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "*",  # fallback for deployed frontends
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-if chat_router is not None:
-    app.include_router(chat_router)
+    if chat_router is not None:
+        app.include_router(chat_router)
+    logger.info("FastAPI app created successfully")
+except Exception as e:
+    logger.error(f"STARTUP ERROR: {e}")
+    traceback.print_exc()
+    sys.exit(1)
 
 def traffic_simulator():
     while True:
