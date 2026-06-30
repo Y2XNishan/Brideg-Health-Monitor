@@ -1,0 +1,163 @@
+import os
+import json
+from groq import Groq
+
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
+XAI_SYSTEM_PROMPT = """You are an expert structural engineering AI for Indian bridges.
+Your job is to explain anomalies in plain, technical language that a field engineer can act on.
+Always cite specific sensor values, thresholds, and IRC standard numbers.
+Be concise — max 4-5 sentences per explanation.
+Never say "I think" or "possibly" — be direct and confident."""
+
+def explain_anomaly(bridge_name: str, sensor_data: dict, anomaly_data: dict, alert_level: str) -> dict:
+    vibration = sensor_data.get("vibration", 0)
+    strain = sensor_data.get("strain", 0)
+    crack_gap = sensor_data.get("crack_gap", 0)
+    water_level = sensor_data.get("water_level", 0)
+    health_score = sensor_data.get("health_score", 100)
+    anomaly_score = sensor_data.get("anomaly_score", 0)
+    
+    # Identify which sensors are breaching thresholds
+    triggered_sensors = []
+    if vibration > 1.2:
+        triggered_sensors.append(f"Vibration {vibration:.3f}g (threshold: 1.2g) — CRITICAL breach")
+    elif vibration > 0.8:
+        triggered_sensors.append(f"Vibration {vibration:.3f}g (approaching threshold of 1.2g)")
+    
+    if strain > 210:
+        triggered_sensors.append(f"Strain {strain:.1f} MPa (limit: 210 MPa) — CRITICAL breach")
+    elif strain > 180:
+        triggered_sensors.append(f"Strain {strain:.1f} MPa (approaching IRC:112 limit of 210 MPa)")
+    
+    if crack_gap > 0.3:
+        triggered_sensors.append(f"Crack gap {crack_gap:.3f}mm (limit: 0.3mm) — CRITICAL breach")
+    elif crack_gap > 0.2:
+        triggered_sensors.append(f"Crack gap {crack_gap:.3f}mm (approaching safe limit of 0.3mm)")
+    
+    if water_level > 4.5:
+        triggered_sensors.append(f"Water level {water_level:.2f}m (flood threshold: 4.5m)")
+    
+    # Determine root cause context
+    root_cause_hints = []
+    if vibration > 0.8 and strain > 180:
+        root_cause_hints.append("simultaneous high vibration and strain suggests heavy vehicle overloading")
+    if crack_gap > 0.2 and strain > 170:
+        root_cause_hints.append("crack growth correlating with high strain indicates progressive structural fatigue")
+    if water_level > 3.5 and vibration > 0.6:
+        root_cause_hints.append("elevated water level combined with vibration suggests scour or flood loading")
+    if anomaly_score > 0.7:
+        root_cause_hints.append(f"ML anomaly score of {anomaly_score:.2f} indicates pattern deviation from historical baseline")
+    
+    prompt = f"""
+Bridge: {bridge_name}
+Alert Level: {alert_level}
+Health Score: {health_score}/100
+Anomaly Score: {anomaly_score}
+
+TRIGGERED SENSORS:
+{chr(10).join(triggered_sensors) if triggered_sensors else 'No direct threshold breaches — anomaly detected by ML pattern recognition'}
+
+ROOT CAUSE INDICATORS:
+{chr(10).join(root_cause_hints) if root_cause_hints else 'Single-sensor anomaly — no compound cause detected'}
+
+FULL SENSOR READINGS:
+- Vibration: {vibration:.3f}g (IRC:6-2017 threshold: 1.2g)
+- Strain: {strain:.1f} MPa (IRC:112-2011 limit: 210 MPa)  
+- Crack Gap: {crack_gap:.3f}mm (NHAI limit: 0.3mm)
+- Water Level: {water_level:.2f}m (flood threshold: 4.5m)
+
+Generate an XAI explanation with exactly these 4 sections:
+
+**ROOT CAUSE**: (1-2 sentences — what is causing this anomaly, cite actual values)
+**SENSOR CORRELATION**: (1-2 sentences — how the sensors relate to each other and confirm the issue)
+**IRC STANDARD REFERENCE**: (1 sentence — which specific IRC standard is being violated or approached)
+**ENGINEER ACTION**: (1-2 sentences — what the field engineer must do right now)
+"""
+
+    api_key = os.getenv("GROQ_API_KEY")
+    explanation = None
+    if api_key:
+        try:
+            client = Groq(api_key=api_key)
+            completion = client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": XAI_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=512,
+                temperature=0.2,
+            )
+            explanation = completion.choices[0].message.content
+        except Exception as e:
+            print(f"⚠️ Groq API failed for anomaly explanation, falling back to rule-based generation: {e}")
+
+    if not explanation or not explanation.strip():
+        # Fallback explanation generator
+        rc_parts = []
+        if vibration > 1.2:
+            rc_parts.append(f"Vibration levels have reached {vibration:.3f}g, exceeding the critical safety limit.")
+        elif vibration > 0.8:
+            rc_parts.append(f"Vibration levels are elevated at {vibration:.3f}g, approaching critical safety limits.")
+            
+        if strain > 210:
+            rc_parts.append(f"Strain readings have breached the ultimate limit state at {strain:.1f} MPa.")
+        elif strain > 180:
+            rc_parts.append(f"Strain readings are highly elevated at {strain:.1f} MPa.")
+            
+        if crack_gap > 0.3:
+            rc_parts.append(f"Crack gap sensor reports critical widening of {crack_gap:.3f}mm.")
+        elif crack_gap > 0.2:
+            rc_parts.append(f"Crack gap sensor shows progressive widening at {crack_gap:.3f}mm.")
+            
+        if water_level > 4.5:
+            rc_parts.append(f"Water level has breached the flood threshold at {water_level:.2f}m.")
+
+        if not rc_parts:
+            rc_parts.append(f"An anomaly was detected by the ML models due to pattern deviations in sensor correlations (Anomaly Score: {anomaly_score:.2f}).")
+
+        root_cause = " ".join(rc_parts[:2])
+
+        if vibration > 0.8 and strain > 180:
+            correlation = f"High vibration ({vibration:.3f}g) and high strain ({strain:.1f} MPa) correlate directly, suggesting heavy overloading."
+        elif crack_gap > 0.2 and strain > 170:
+            correlation = f"Crack widening ({crack_gap:.3f}mm) correlating with high strain ({strain:.1f} MPa) indicates structural fatigue under load."
+        elif water_level > 3.5 and vibration > 0.6:
+            correlation = f"Elevated water level ({water_level:.2f}m) combined with increased vibrations suggests fluid-structure interaction or scour."
+        else:
+            correlation = f"Sensor correlation confirms an anomaly deviation score of {anomaly_score:.2f} compared to historical baseline signatures."
+
+        # IRC reference
+        if strain > 180:
+            irc_ref = "IRC:112-2011 limits concrete tensile strain and dictates maximum allowable stress values."
+        elif vibration > 0.8:
+            irc_ref = "IRC:6-2017 establishes live load vibration and dynamic allowance factor thresholds."
+        elif crack_gap > 0.2:
+            irc_ref = "IRC:SP:44-1996 guidelines govern the inspection and repair of cracks in concrete bridges."
+        else:
+            irc_ref = "IRC:SP:51-2015 guidelines specify structural health monitoring systems and sensor deployment."
+
+        # Engineer action
+        if alert_level == "CRITICAL":
+            action = f"Immediately suspend heavy traffic crossings and deploy a structural response team to inspect {bridge_name} bearings and girders."
+        elif alert_level == "WARNING":
+            action = "Deploy a maintenance crew to perform local inspection, sensor calibration, and structural checks within 48 hours."
+        else:
+            action = "Increase telemetry polling frequency and verify sensor battery levels and transmission logs."
+
+        explanation = f"""**ROOT CAUSE**: {root_cause}
+**SENSOR CORRELATION**: {correlation}
+**IRC STANDARD REFERENCE**: {irc_ref}
+**ENGINEER ACTION**: {action}"""
+    
+    return {
+        "bridge_name": bridge_name,
+        "alert_level": alert_level,
+        "health_score": health_score,
+        "anomaly_score": anomaly_score,
+        "triggered_sensors": triggered_sensors,
+        "root_cause_hints": root_cause_hints,
+        "explanation": explanation,
+        "sensor_data": sensor_data
+    }

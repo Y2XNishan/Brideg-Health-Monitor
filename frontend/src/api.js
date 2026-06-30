@@ -1,0 +1,165 @@
+const API_BASE = '/api';
+
+// Helper to automatically attach token
+async function apiFetch(url, options = {}) {
+  const token = localStorage.getItem('bridgeiq_token');
+  const headers = {
+    ...options.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  return res;
+}
+
+export async function fetchBridges() {
+  const res = await apiFetch(`${API_BASE}/bridges`);
+  if (!res.ok) throw new Error(`/api/bridges ${res.status}`);
+  return res.json();
+}
+
+export async function fetchLive(bridgeId = 1) {
+  const res = await apiFetch(`${API_BASE}/live?bridge_id=${bridgeId}`);
+  if (!res.ok) throw new Error(`/api/live ${res.status}`);
+  return res.json();
+}
+
+export async function fetchAlerts(bridgeId = 1) {
+  const res = await apiFetch(`${API_BASE}/alerts?bridge_id=${bridgeId}`);
+  if (!res.ok) throw new Error(`/api/alerts ${res.status}`);
+  return res.json();
+}
+
+export async function fetchHistory(bridgeId = 1) {
+  const res = await apiFetch(`${API_BASE}/history?bridge_id=${bridgeId}`);
+  if (!res.ok) throw new Error(`/api/history ${res.status}`);
+  return res.json();
+}
+
+export async function fetchAnomaly(bridgeId = 1) {
+  const res = await apiFetch(`${API_BASE}/anomaly?bridge_id=${bridgeId}`);
+  if (!res.ok) throw new Error(`/api/anomaly ${res.status}`);
+  return res.json();
+}
+
+export async function fetchPredict(bridgeId = 1) {
+  const res = await apiFetch(`${API_BASE}/predict?bridge_id=${bridgeId}`);
+  if (!res.ok) throw new Error(`/api/predict ${res.status}`);
+  return res.json();
+}
+
+export async function fetchHealthHistory(bridgeId = 1) {
+  const res = await apiFetch(`${API_BASE}/health/history?bridge_id=${bridgeId}`);
+  if (!res.ok) throw new Error(`/api/health/history ${res.status}`);
+  return res.json();
+}
+
+export async function fetchMaintenanceAssignments() {
+  const res = await apiFetch(`${API_BASE}/maintenance/assignments`);
+  if (!res.ok) throw new Error(`/api/maintenance/assignments ${res.status}`);
+  return res.json();
+}
+
+export async function createMaintenanceAssignment(payload) {
+  const res = await apiFetch(`${API_BASE}/maintenance/assignments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`/api/maintenance/assignments ${res.status}`);
+  return res.json();
+}
+
+export async function updateMaintenanceAssignment(assignmentId, payload) {
+  const res = await apiFetch(`${API_BASE}/maintenance/assignments/${assignmentId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`/api/maintenance/assignments/${assignmentId} ${res.status}`);
+  return res.json();
+}
+
+export async function deleteMaintenanceAssignment(assignmentId) {
+  const res = await apiFetch(`${API_BASE}/maintenance/assignments/${assignmentId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`/api/maintenance/assignments/${assignmentId} ${res.status}`);
+  return res.json();
+}
+
+export async function fetchMaintenanceEngineers() {
+  const res = await apiFetch(`${API_BASE}/maintenance/engineers`);
+  if (!res.ok) throw new Error(`/api/maintenance/engineers ${res.status}`);
+  return res.json();
+}
+
+export async function downloadReport(bridgeId, bridgeName) {
+  const token = localStorage.getItem('bridgeiq_token');
+  const urlWithToken = `${API_BASE}/report?bridge_id=${bridgeId}${token ? `&token=${token}` : ''}`;
+  
+  const res = await apiFetch(urlWithToken);
+  if (!res.ok) throw new Error(`/api/report ${res.status}`);
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const date = new Date().toISOString().slice(0, 10);
+  a.download = `Bridge_Health_Monitor_Report_${bridgeName}_${date}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function runAgentInspect(bridgeId, bridgeName) {
+  const res = await apiFetch(`${API_BASE}/agent/inspect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bridge_id: bridgeId, bridge_name: bridgeName }),
+  });
+  if (!res.ok) throw new Error(`/api/agent/inspect ${res.status}`);
+  return res.json();
+}
+
+export async function downloadAgentInspectPDF(inspectionResult) {
+  const res = await apiFetch(`${API_BASE}/agent/inspect/pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      bridge_id: inspectionResult.bridge_id,
+      bridge_name: inspectionResult.bridge_name,
+      severity: inspectionResult.severity,
+      health_score: inspectionResult.health_score,
+      alert_level: inspectionResult.alert_level,
+      sensor_summary: inspectionResult.sensor_summary,
+      issues_detected: inspectionResult.issues_detected,
+      recommendations: inspectionResult.recommendations,
+      full_report: inspectionResult.full_report
+    }),
+  });
+  if (!res.ok) throw new Error(`/api/agent/inspect/pdf ${res.status}`);
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const date = new Date().toISOString().slice(0, 10);
+  a.download = `AI_Inspection_Report_${inspectionResult.bridge_name}_${date}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function fetchXaiExplanation(bridgeId) {
+  const res = await apiFetch(`${API_BASE}/xai/explain?bridge_id=${bridgeId}`);
+  if (!res.ok) throw new Error(`/api/xai/explain ${res.status}`);
+  return res.json();
+}

@@ -1,0 +1,17 @@
+{
+  "n_samples": 20160,
+  "days": 14,
+  "sample_rate": 60,
+  "fault_count": 8,
+  "label_balance": {
+    "-1": 10,
+    "0": 13926,
+    "1": 6224
+  },
+  "thresholds": {
+    "water_level": 5.5,
+    "vibration": 1.2,
+    "strain": 210.0,
+    "crack_gap": 0.65
+  }
+}
