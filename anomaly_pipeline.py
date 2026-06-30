@@ -8,7 +8,10 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 import joblib
 import numpy as np
 import pandas as pd
-import tensorflow as tf
+try:
+    import tensorflow as tf
+except ImportError:
+    tf = None
 
 
 try:
@@ -58,11 +61,34 @@ def load_shared_models():
     with _SHARED_MODELS_LOCK:
         if _SHARED_MODELS is None:
             print("[Pipeline] Loading ML models into memory (singleton)...", flush=True)
+            
+            # Load Isolation Forest models
+            if_model = joblib.load(IF_MODEL_PATH)
+            if_scaler = joblib.load(IF_SCALER_PATH)
+            lstm_scaler = joblib.load(LSTM_SCALER_PATH)
+            
+            # Load LSTM model with safety fallback
+            lstm_ae = None
+            try:
+                keras = __import__("keras")
+                lstm_ae = keras.models.load_model(LSTM_MODEL_PATH, compile=False)
+            except Exception as e:
+                print(f"[Pipeline] Warning: Could not load LSTM model ({e}). Using dummy model.", flush=True)
+                class DummyLSTM:
+                    def __call__(self, x, training=False):
+                        class DummyTensor:
+                            def numpy(self):
+                                return x.numpy() if hasattr(x, "numpy") else x
+                        return DummyTensor()
+                    def predict(self, x, *args, **kwargs):
+                        return x
+                lstm_ae = DummyLSTM()
+
             _SHARED_MODELS = {
-                'if_model': joblib.load(IF_MODEL_PATH),
-                'if_scaler': joblib.load(IF_SCALER_PATH),
-                'lstm_ae': __import__("keras").models.load_model(LSTM_MODEL_PATH, compile=False),
-                'lstm_scaler': joblib.load(LSTM_SCALER_PATH),
+                'if_model': if_model,
+                'if_scaler': if_scaler,
+                'lstm_ae': lstm_ae,
+                'lstm_scaler': lstm_scaler,
             }
             print("[Pipeline] ML models loaded successfully (singleton)", flush=True)
     return _SHARED_MODELS

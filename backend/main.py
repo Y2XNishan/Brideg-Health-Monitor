@@ -28,7 +28,6 @@ _REQUIRED = [
     "joblib",
     "scikit-learn",
     "xgboost",
-    "tensorflow",
     "httpx",
     "groq",
     "faiss-cpu",
@@ -57,6 +56,39 @@ def _ensure_packages():
 
 
 _ensure_packages()
+
+# ---------------------------------------------------------------------------
+# Wrap heavy ML packages in try/except so server doesn't crash if missing
+# ---------------------------------------------------------------------------
+try:
+    import tensorflow as tf
+except ImportError:
+    tf = None
+
+try:
+    import torch
+except ImportError:
+    torch = None
+
+try:
+    import keras
+except ImportError:
+    keras = None
+
+try:
+    import peft
+except ImportError:
+    peft = None
+
+try:
+    import trl
+except ImportError:
+    trl = None
+
+try:
+    import bitsandbytes
+except ImportError:
+    bitsandbytes = None
 
 # ---------------------------------------------------------------------------
 # Standard imports (available after auto-install)
