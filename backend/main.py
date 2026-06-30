@@ -66,19 +66,35 @@ except ImportError:
     tf = None
 
 try:
+    from keras.models import load_model
+except ImportError:
+    load_model = None
+
+try:
     import torch
 except ImportError:
     torch = None
 
 try:
-    import keras
+    from transformers import AutoTokenizer, AutoModelForCausalLM
 except ImportError:
-    keras = None
+    AutoTokenizer = None
+    AutoModelForCausalLM = None
 
 try:
-    import peft
+    import faiss
 except ImportError:
-    peft = None
+    faiss = None
+
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
+
+try:
+    from peft import PeftModel
+except ImportError:
+    PeftModel = None
 
 try:
     import trl
@@ -115,15 +131,42 @@ import subprocess
 try:
     import reportlab
 except ImportError:
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'reportlab'])
+    if os.environ.get("RENDER"):
+        print("[setup] WARNING: reportlab is missing on Render. PDF export will be disabled.")
+        reportlab = None
+    else:
+        try:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'reportlab'])
+            import reportlab
+        except Exception as e:
+            print(f"[setup] Failed to install reportlab: {e}")
+            reportlab = None
 
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, cm
-from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-    Table, TableStyle, HRFlowable, PageBreak)
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch, cm
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+        Table, TableStyle, HRFlowable, PageBreak)
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+except ImportError:
+    A4 = None
+    colors = None
+    getSampleStyleSheet = None
+    ParagraphStyle = None
+    inch = None
+    cm = None
+    SimpleDocTemplate = None
+    Paragraph = None
+    Spacer = None
+    Table = None
+    TableStyle = None
+    HRFlowable = None
+    PageBreak = None
+    TA_CENTER = None
+    TA_LEFT = None
+    TA_RIGHT = None
 from fastapi.responses import StreamingResponse, JSONResponse
 import io
 import httpx
@@ -147,9 +190,32 @@ sys.path.insert(0, str(PROJECT_ROOT))
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-from anomaly_pipeline import AnomalyPipeline  # noqa: E402
-from simulate import LiveSensorStream, build_dataset, THRESHOLDS  # noqa: E402
-from traffic import TrafficMonitor, generate_crossing_event
+try:
+    from anomaly_pipeline import AnomalyPipeline  # noqa: E402
+except ImportError:
+    class AnomalyPipeline:
+        def __init__(self, bridge_id=1):
+            self.bridge_id = bridge_id
+        def add_reading(self, reading): pass
+        def is_ready(self): return False
+        def get_combined_score(self): return {"if_score": 0.0, "lstm_score": 0.0, "combined_score": 0.0, "alert_level": "NORMAL", "is_anomaly": False}
+
+try:
+    from simulate import LiveSensorStream, build_dataset, THRESHOLDS  # noqa: E402
+except ImportError:
+    class LiveSensorStream:
+        def __init__(self, df): pass
+        def get_next_reading(self): return {}
+    def build_dataset(*args, **kwargs): return None
+    THRESHOLDS = {}
+
+try:
+    from traffic import TrafficMonitor, generate_crossing_event
+except ImportError:
+    class TrafficMonitor:
+        def __init__(self, bridge_id): pass
+        def update(self, *args, **kwargs): return {}
+    def generate_crossing_event(*args, **kwargs): return {}
 
 # Pipeline B models (loaded manually to avoid re-running evaluation)
 import joblib  # noqa: E402
@@ -165,20 +231,57 @@ XGB_WEIGHT = 0.60
 # ---------------------------------------------------------------------------
 # Initialise global prediction models (loaded once at server startup)
 # ---------------------------------------------------------------------------
-print("[server] Loading prediction models (Pipeline B) …")
-_rf_model = joblib.load(RF_MODEL_PATH)
-_rf_scaler = joblib.load(RF_SCALER_PATH)
-_xgb_model = joblib.load(XGB_MODEL_PATH)
-_xgb_scaler = joblib.load(XGB_SCALER_PATH)
+try:
+    print("[server] Loading prediction models (Pipeline B) …")
+    _rf_model = joblib.load(RF_MODEL_PATH)
+    _rf_scaler = joblib.load(RF_SCALER_PATH)
+    _xgb_model = joblib.load(XGB_MODEL_PATH)
+    _xgb_scaler = joblib.load(XGB_SCALER_PATH)
+except Exception as e:
+    print(f"[server] Warning: Could not load prediction models (Pipeline B): {e}")
+    _rf_model = None
+    _rf_scaler = None
+    _xgb_model = None
+    _xgb_scaler = None
 
 # Feature engineering imports for live prediction
-from features import engineer_features_last_row, SENSORS  # noqa: E402
-from backend.chat import router as chat_router  # noqa: E402
-from backend.telegram_alerts import check_and_send_alert
-from crack_detection import analyze_crack_image
-from backend.agent import run_inspection_agent
-from backend.xai import explain_anomaly
-from backend.survival import run_survival_analysis, calculate_degradation_rate, predict_time_to_threshold
+try:
+    from features import engineer_features_last_row, SENSORS  # noqa: E402
+except ImportError:
+    engineer_features_last_row = None
+    SENSORS = ['water_level', 'vibration', 'strain', 'crack_gap']
+
+try:
+    from backend.chat import router as chat_router  # noqa: E402
+except ImportError:
+    chat_router = None
+
+try:
+    from backend.telegram_alerts import check_and_send_alert
+except ImportError:
+    check_and_send_alert = None
+
+try:
+    from crack_detection import analyze_crack_image
+except ImportError:
+    analyze_crack_image = None
+
+try:
+    from backend.agent import run_inspection_agent
+except ImportError:
+    run_inspection_agent = None
+
+try:
+    from backend.xai import explain_anomaly
+except ImportError:
+    explain_anomaly = None
+
+try:
+    from backend.survival import run_survival_analysis, calculate_degradation_rate, predict_time_to_threshold
+except ImportError:
+    run_survival_analysis = None
+    calculate_degradation_rate = None
+    predict_time_to_threshold = None
 
 _HISTORY_WINDOW = 1500  # enough rows for rolling-24h features
 _HEALTH_HISTORY_MAX = 50
@@ -492,6 +595,9 @@ class BridgeSimulator:
         risk_score = 0.0
         if len(self.live_history) >= 60:
             try:
+                if _rf_model is None or _xgb_model is None or _rf_scaler is None or _xgb_scaler is None or engineer_features_last_row is None:
+                    raise ValueError("Pipeline B prediction models or feature engineering are not loaded")
+                
                 history_df = pd.DataFrame(self.live_history)
                 last_features_df = engineer_features_last_row(history_df)
                 
@@ -698,7 +804,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(chat_router)
+if chat_router is not None:
+    app.include_router(chat_router)
 
 def traffic_simulator():
     while True:
@@ -1141,18 +1248,19 @@ async def live_reading(bridge_id: int = 1):
     data["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Trigger Telegram alert check (non-blocking)
-    asyncio.create_task(check_and_send_alert(
-        bridge_id=bridge_id,
-        bridge_name=sim.name,
-        alert_level=data["alert_level"],
-        health_score=data["health_score"],
-        water_level=data["water_level"],
-        vibration=data["vibration"],
-        strain=data["strain"],
-        crack_gap=data["crack_gap"],
-        risk_score=data["risk_score"],
-        anomaly_score=float(data.get("anomaly_score", 0.5)),
-    ))
+    if check_and_send_alert is not None:
+        asyncio.create_task(check_and_send_alert(
+            bridge_id=bridge_id,
+            bridge_name=sim.name,
+            alert_level=data["alert_level"],
+            health_score=data["health_score"],
+            water_level=data["water_level"],
+            vibration=data["vibration"],
+            strain=data["strain"],
+            crack_gap=data["crack_gap"],
+            risk_score=data["risk_score"],
+            anomaly_score=float(data.get("anomaly_score", 0.5)),
+        ))
 
     return data
 
@@ -1178,7 +1286,8 @@ async def xai_explain(bridge_id: int = 1, user=Depends(get_current_user)):
     else:
         alert_level = "NORMAL"
     anomaly_data = {}
-    
+    if explain_anomaly is None:
+        raise HTTPException(status_code=500, detail="XAI explanation module is not available")
     result = explain_anomaly(bridge_name, live, anomaly_data, alert_level)
     return result
 
@@ -1206,12 +1315,16 @@ async def survival_predict(bridge_id: int = 1, user=Depends(get_current_user)):
         
     sensor_data = {**live, "alert_level": alert_level}
     
+    if run_survival_analysis is None:
+        raise HTTPException(status_code=500, detail="Survival analysis module is not available")
     result = run_survival_analysis(bridge_id, bridge_name, sensor_data)
     return result
 
 @app.get("/api/survival/all")
 async def survival_all(user=Depends(get_current_user)):
     """Get survival predictions for all bridges — for priority dashboard."""
+    if calculate_degradation_rate is None or predict_time_to_threshold is None:
+        raise HTTPException(status_code=500, detail="Survival analysis module is not available")
     results = []
     for bridge_id in range(1, 59):
         try:
@@ -1739,6 +1852,8 @@ def get_maintenance_all():
 @app.get("/api/report")
 def get_report(bridge_id: int = 1, user = Depends(get_current_user)):
     """Generate a highly professional, 4-page A4 PDF Structural Health Report."""
+    if SimpleDocTemplate is None:
+        raise HTTPException(status_code=503, detail="PDF generation library (reportlab) is not installed")
     # 1. Fetch live data
     ensure_simulator_exists(bridge_id)
     sim = _simulators.get(bridge_id)
@@ -2650,6 +2765,8 @@ async def detect_crack(
     if file.size and file.size > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Image must be under 10MB")
     image_bytes = await file.read()
+    if analyze_crack_image is None:
+        raise HTTPException(status_code=500, detail="Crack detection module is not available")
     result = analyze_crack_image(image_bytes, bridge_id, bridge_name)
     return result
 
@@ -2676,11 +2793,15 @@ class AgentInspectPDFRequest(BaseModel):
 async def agent_inspect(req: dict, user=Depends(require_role(["admin", "engineer"]))):
     bridge_id = req.get("bridge_id", 1)
     bridge_name = req.get("bridge_name", "Unknown Bridge")
+    if run_inspection_agent is None:
+        raise HTTPException(status_code=500, detail="AI inspection agent is not available")
     result = await run_inspection_agent(bridge_id, bridge_name)
     return result
 
 @app.post("/api/agent/inspect/pdf")
 def agent_inspect_pdf(req: AgentInspectPDFRequest, user = Depends(get_current_user)):
+    if SimpleDocTemplate is None:
+        raise HTTPException(status_code=503, detail="PDF generation library (reportlab) is not installed")
     add_audit_entry(user["email"], user["role"], "EXPORT_AGENT_REPORT", f"Bridge {req.bridge_id} ({req.bridge_name})", "SUCCESS")
     
     buffer = io.BytesIO()
@@ -2913,6 +3034,8 @@ def agent_inspect_pdf(req: AgentInspectPDFRequest, user = Depends(get_current_us
 
 @app.get("/api/reports/bridge/{bridge_id}")
 def get_bridge_pdf_report(bridge_id: int, user = Depends(get_current_user)):
+    if SimpleDocTemplate is None:
+        raise HTTPException(status_code=503, detail="PDF generation library (reportlab) is not installed")
     # 1. Fetch bridge metadata
     bridge_info = next((b for b in _INDIA_BRIDGES if b["id"] == bridge_id), None)
     if not bridge_info:
@@ -3256,6 +3379,8 @@ def get_bridge_pdf_report(bridge_id: int, user = Depends(get_current_user)):
 
 @app.get("/api/reports/network")
 def get_network_pdf_report(user = Depends(get_current_user)):
+    if SimpleDocTemplate is None:
+        raise HTTPException(status_code=503, detail="PDF generation library (reportlab) is not installed")
     # 1. Gather live data from all simulators
     bridges_data = []
     num_healthy = 0
@@ -3629,6 +3754,8 @@ class ChatReportRequest(BaseModel):
 @app.post("/api/reports/chat")
 def get_chat_pdf_report(request: ChatReportRequest, user = Depends(get_current_user)):
     """Generate a professional PDF report of the current chat session."""
+    if SimpleDocTemplate is None:
+        raise HTTPException(status_code=503, detail="PDF generation library (reportlab) is not installed")
     
     # 1. Fetch live bridge metadata
     try:
