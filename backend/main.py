@@ -14,6 +14,12 @@ GET /api/history          — last 180 rows of raw sensor data (~3 hours)
 GET /api/health/history   — last 50 health score readings from in-memory buffer
 """
 
+import os
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_DATASETS_OFFLINE"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import sys
 import traceback
 import logging
