@@ -1,23 +1,8 @@
-"""
-Bridge Structural Health Monitoring — FastAPI Backend
-=====================================================
-Serves real-time simulated sensor data, anomaly scores, failure predictions,
-alert summaries, and historical sensor readings over a REST API.
-
-Endpoints
----------
-GET /api/live             — latest simulated sensor reading with pipeline scores + health score
-GET /api/anomaly          — last 50 rows from Pipeline A (anomaly detection)
-GET /api/predict          — last 50 rows from Pipeline B (failure prediction)
-GET /api/alerts           — last 20 CRITICAL / WARNING rows from Pipeline B
-GET /api/history          — last 180 rows of raw sensor data (~3 hours)
-GET /api/health/history   — last 50 health score readings from in-memory buffer
-"""
-
 import os
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
-os.environ["HF_DATASETS_OFFLINE"] = "1"
+os.environ["HF_DATASETS_OFFLINE"] = "1" 
 os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import sys
@@ -45,15 +30,10 @@ _REQUIRED = [
     "xgboost",
     "httpx",
     "groq",
-    "faiss-cpu",
-    "sentence-transformers",
     "pypdf",
-    "langchain",
-    "langchain-community",
 ]
 
 _IMPORT_NAMES = {
-    "faiss-cpu": "faiss",
     "scikit-learn": "sklearn",
 }
 
@@ -64,6 +44,10 @@ def _ensure_packages():
             base = _IMPORT_NAMES.get(pkg, pkg.split("[")[0].replace("-", "_"))
             __import__(base)
         except ImportError:
+            # If on Render, skip pip install to prevent startup timeout
+            if os.environ.get("RENDER"):
+                print(f"[setup] WARNING: Required package {pkg} is missing on Render. Skipping runtime installation.")
+                continue
             print(f"[setup] Installing {pkg} …")
             subprocess.check_call(
                 [sys.executable, "-m", "pip", "install", pkg, "-q"],
@@ -77,53 +61,18 @@ except Exception as e:
     traceback.print_exc()
 
 # ---------------------------------------------------------------------------
-# Wrap heavy ML packages in try/except so server doesn't crash if missing
+# Wrap heavy ML packages in mock declarations (removed for Render)
 # ---------------------------------------------------------------------------
-try:
-    import tensorflow as tf
-except ImportError:
-    tf = None
-
-try:
-    from keras.models import load_model
-except ImportError:
-    load_model = None
-
-try:
-    import torch
-except ImportError:
-    torch = None
-
-try:
-    from transformers import AutoTokenizer, AutoModelForCausalLM
-except ImportError:
-    AutoTokenizer = None
-    AutoModelForCausalLM = None
-
-try:
-    import faiss
-except ImportError:
-    faiss = None
-
-try:
-    from sentence_transformers import SentenceTransformer
-except ImportError:
-    SentenceTransformer = None
-
-try:
-    from peft import PeftModel
-except ImportError:
-    PeftModel = None
-
-try:
-    import trl
-except ImportError:
-    trl = None
-
-try:
-    import bitsandbytes
-except ImportError:
-    bitsandbytes = None
+tf = None
+load_model = None
+torch = None
+AutoTokenizer = None
+AutoModelForCausalLM = None
+faiss = None
+SentenceTransformer = None
+PeftModel = None
+trl = None
+bitsandbytes = None
 
 # ---------------------------------------------------------------------------
 # Standard imports (available after auto-install)
@@ -209,15 +158,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-try:
-    from anomaly_pipeline import AnomalyPipeline  # noqa: E402
-except ImportError:
-    class AnomalyPipeline:
-        def __init__(self, bridge_id=1):
-            self.bridge_id = bridge_id
-        def add_reading(self, reading): pass
-        def is_ready(self): return False
-        def get_combined_score(self): return {"if_score": 0.0, "lstm_score": 0.0, "combined_score": 0.0, "alert_level": "NORMAL", "is_anomaly": False}
+# Commented out imports that would load heavy ML libraries (TensorFlow/Torch/Keras/FAISS/Transformers)
+# from anomaly_pipeline import AnomalyPipeline
+class AnomalyPipeline:
+    def __init__(self, bridge_id=1):
+        self.bridge_id = bridge_id
+    def add_reading(self, reading): pass
+    def is_ready(self): return False
+    def get_combined_score(self): return {"if_score": 0.0, "lstm_score": 0.0, "combined_score": 0.0, "alert_level": "NORMAL", "is_anomaly": False}
 
 try:
     from simulate import LiveSensorStream, build_dataset, THRESHOLDS  # noqa: E402
@@ -271,25 +219,31 @@ except ImportError:
     engineer_features_last_row = None
     SENSORS = ['water_level', 'vibration', 'strain', 'crack_gap']
 
-try:
-    from backend.chat import router as chat_router  # noqa: E402
-except ImportError:
-    chat_router = None
+# Commented out chat router since it transitively imports torch/transformers/peft/RAG
+# from backend.chat import router as chat_router
+from fastapi import APIRouter
+chat_router = APIRouter()
+
+@chat_router.get("/api/chat/model-info")
+async def chat_model_info_fallback():
+    raise HTTPException(status_code=503, detail="Chat service is unavailable on offline Render deployment.")
+
+@chat_router.post("/api/chat")
+async def chat_fallback():
+    raise HTTPException(status_code=503, detail="Chat service is unavailable on offline Render deployment.")
 
 try:
     from backend.telegram_alerts import check_and_send_alert
 except ImportError:
     check_and_send_alert = None
 
-try:
-    from crack_detection import analyze_crack_image
-except ImportError:
-    analyze_crack_image = None
+# Commented out crack detection image analysis as it is not needed on Render
+# from crack_detection import analyze_crack_image
+analyze_crack_image = None
 
-try:
-    from backend.agent import run_inspection_agent
-except ImportError:
-    run_inspection_agent = None
+# Commented out agent as it transitively loads RAG/sentence-transformers
+# from backend.agent import run_inspection_agent
+run_inspection_agent = None
 
 try:
     from backend.xai import explain_anomaly
