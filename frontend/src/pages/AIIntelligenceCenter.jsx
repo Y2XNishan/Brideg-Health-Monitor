@@ -14,7 +14,8 @@ import {
 /* ═══════════════════════════════════════════════════════════════════════════
    CONSTANTS (AIOps Center)
    ═══════════════════════════════════════════════════════════════════════════ */
-const API = '/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API = `${API_BASE}/api`;
 const REFRESH_MS = 15000;
 const BRIDGE_IDS = Array.from({ length: 58 }, (_, i) => i + 1);
 
@@ -1486,7 +1487,7 @@ function BridgeIntelligenceTab() {
     setIsExporting(true);
     try {
       const t = localStorage.getItem('bridgeiq_token') || '';
-      const response = await fetch('/api/reports/chat', {
+      const response = await fetch(`${API}/reports/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${t}`,
@@ -1601,7 +1602,7 @@ function BridgeIntelligenceTab() {
     setIsTyping(true);
 
     try {
-      const response = await fetch('/api/chat/bridge-intelligence', {
+      const response = await fetch(`${API}/chat/bridge-intelligence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: userMsg, bridges: bridges })

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 import {
   BarChart,
   Bar,
@@ -21,7 +23,7 @@ export default function TrafficPanel({ bridgeId = 1 }) {
 
     async function fetchTraffic() {
       try {
-        const res = await fetch(`/api/traffic?bridge_id=${bridgeId}`);
+        const res = await fetch(`${API_BASE}/api/traffic?bridge_id=${bridgeId}`);
         if (!res.ok) {
           throw new Error(`Failed to fetch traffic data: ${res.statusText}`);
         }

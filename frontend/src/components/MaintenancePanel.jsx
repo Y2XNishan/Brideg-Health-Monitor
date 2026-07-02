@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 import {
   LineChart,
   Line,
@@ -35,7 +37,7 @@ export default function MaintenancePanel({ bridgeId, activeBridgeId, healthHisto
 
   // ── Fetch maintenance prediction ──
   const fetchPrediction = () => {
-    fetch(`/api/maintenance?bridge_id=${bid}`)
+    fetch(`${API_BASE}/api/maintenance?bridge_id=${bid}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
         return res.json();

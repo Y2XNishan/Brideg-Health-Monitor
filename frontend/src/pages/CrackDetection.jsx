@@ -1,4 +1,6 @@
 import { useState, useRef } from "react";
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 import { Upload, AlertTriangle, CheckCircle, XCircle, ZoomIn, FileText, Camera } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -49,7 +51,7 @@ export default function CrackDetection() {
       formData.append("bridge_id", bridgeId);
       formData.append("bridge_name", bridgeName);
       const res = await fetch(
-        `/api/crack-detection?bridge_id=${bridgeId}&bridge_name=${encodeURIComponent(bridgeName)}`,
+        `${API_BASE}/api/crack-detection?bridge_id=${bridgeId}&bridge_name=${encodeURIComponent(bridgeName)}`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${authToken}` },

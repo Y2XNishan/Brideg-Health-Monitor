@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 import { fetchBridges } from '../api';
 
 export default function AdminPanel() {
@@ -19,13 +21,13 @@ export default function AdminPanel() {
       const headers = { 'Authorization': `Bearer ${token}` };
       
       // Fetch users (Admin only)
-      const usersRes = await fetch('/api/auth/users', { headers });
+      const usersRes = await fetch(`${API_BASE}/api/auth/users`, { headers });
       if (!usersRes.ok) throw new Error(`Users failed: ${usersRes.status}`);
       const usersData = await usersRes.json();
       setUsers(usersData);
 
       // Fetch audit logs (Admin/Engineer only)
-      const logsRes = await fetch('/api/audit-log', { headers });
+      const logsRes = await fetch(`${API_BASE}/api/audit-log`, { headers });
       if (!logsRes.ok) throw new Error(`Audit logs failed: ${logsRes.status}`);
       const logsData = await logsRes.json();
       setAuditLogs(logsData);
@@ -53,7 +55,7 @@ export default function AdminPanel() {
     if (!window.confirm(`Are you sure you want to revoke system clearance for ${userName}?`)) return;
 
     try {
-      const res = await fetch(`/api/auth/users/${userId}`, {
+      const res = await fetch(`${API_BASE}/api/auth/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

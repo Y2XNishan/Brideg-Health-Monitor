@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const MAX_HISTORY_MESSAGES = 10;
 
 const renderMarkdown = (text) => {
@@ -62,7 +64,7 @@ export default function ChatPanel({ bridgeId = 1, bridgeName = 'Selected Bridge'
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    fetch('/api/chat/model-info')
+    fetch(`${API_BASE}/api/chat/model-info`)
       .then((response) => response.json())
       .then((data) => setModelInfo(data))
       .catch(() => setModelInfo(null));
@@ -72,7 +74,7 @@ export default function ChatPanel({ bridgeId = 1, bridgeName = 'Selected Bridge'
     let active = true;
     async function loadLive() {
       try {
-        const res = await fetch(`/api/live?bridge_id=${bridgeId}`, {
+        const res = await fetch(`${API_BASE}/api/live?bridge_id=${bridgeId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('bridgeiq_token')}`
           }
@@ -117,7 +119,7 @@ export default function ChatPanel({ bridgeId = 1, bridgeName = 'Selected Bridge'
       if (!token) return;
 
       try {
-        const res = await fetch('http://localhost:8000/api/chat/critical-alerts', {
+        const res = await fetch(`${API_BASE}/api/chat/critical-alerts`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -264,7 +266,7 @@ export default function ChatPanel({ bridgeId = 1, bridgeName = 'Selected Bridge'
       let apiError = null;
 
       try {
-        const response = await fetch('http://localhost:8000/api/chat/autonomous-action', {
+        const response = await fetch(`${API_BASE}/api/chat/autonomous-action`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -405,7 +407,7 @@ export default function ChatPanel({ bridgeId = 1, bridgeName = 'Selected Bridge'
         let apiError = null;
 
         try {
-          const response = await fetch('http://localhost:8000/api/chat/autonomous-action', {
+          const response = await fetch(`${API_BASE}/api/chat/autonomous-action`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -466,7 +468,7 @@ export default function ChatPanel({ bridgeId = 1, bridgeName = 'Selected Bridge'
         formData.append('message', userMessage || 'Analyze this bridge image and identify any structural issues');
         formData.append('image', selectedImage);
 
-        const response = await fetch('/api/chat/vision', {
+        const response = await fetch(`${API_BASE}/api/chat/vision`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}` 
@@ -483,7 +485,7 @@ export default function ChatPanel({ bridgeId = 1, bridgeName = 'Selected Bridge'
         setImagePreview(null);
       } else {
         // Regular text chat
-        const response = await fetch('/api/chat', {
+        const response = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',

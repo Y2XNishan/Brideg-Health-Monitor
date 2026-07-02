@@ -11,6 +11,8 @@ import {
 } from 'recharts';
 import { fetchHistory } from '../api';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -46,7 +48,7 @@ export default function HistoryChart({ historyData: externalData, activeBridgeId
 
     try {
       console.log('[HistoryChart] Fetching history for bridge', activeBridgeId);
-      const res = await fetch(`/api/history?bridge_id=${activeBridgeId}`, {
+      const res = await fetch(`${API_BASE}/api/history?bridge_id=${activeBridgeId}`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

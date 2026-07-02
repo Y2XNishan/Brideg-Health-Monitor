@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 import ReactMarkdown from 'react-markdown';
 import { 
   Bot, 
@@ -150,7 +152,7 @@ export default function AgentInspector() {
   
   // Fetch all 58 bridges on mount
   useEffect(() => {
-    fetch('/api/india/bridges')
+    fetch(`${API_BASE}/api/india/bridges`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
         return res.json();
@@ -201,7 +203,7 @@ export default function AgentInspector() {
     try {
       console.log("Selected Bridge:", selectedBridge);
       const token = localStorage.getItem('bridgeiq_token');
-      const response = await fetch('/api/agent/inspect', {
+      const response = await fetch(`${API_BASE}/api/agent/inspect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -258,7 +260,7 @@ export default function AgentInspector() {
     setDownloadingPDF(true);
     try {
       const token = localStorage.getItem('bridgeiq_token');
-      const response = await fetch('/api/agent/inspect/pdf', {
+      const response = await fetch(`${API_BASE}/api/agent/inspect/pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

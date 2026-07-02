@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Helper to automatically attach token
 async function apiFetch(url, options = {}) {
@@ -20,55 +20,55 @@ async function apiFetch(url, options = {}) {
 }
 
 export async function fetchBridges() {
-  const res = await apiFetch(`${API_BASE}/bridges`);
+  const res = await apiFetch(`${API_BASE}/api/bridges`);
   if (!res.ok) throw new Error(`/api/bridges ${res.status}`);
   return res.json();
 }
 
 export async function fetchLive(bridgeId = 1) {
-  const res = await apiFetch(`${API_BASE}/live?bridge_id=${bridgeId}`);
+  const res = await apiFetch(`${API_BASE}/api/live?bridge_id=${bridgeId}`);
   if (!res.ok) throw new Error(`/api/live ${res.status}`);
   return res.json();
 }
 
 export async function fetchAlerts(bridgeId = 1) {
-  const res = await apiFetch(`${API_BASE}/alerts?bridge_id=${bridgeId}`);
+  const res = await apiFetch(`${API_BASE}/api/alerts?bridge_id=${bridgeId}`);
   if (!res.ok) throw new Error(`/api/alerts ${res.status}`);
   return res.json();
 }
 
 export async function fetchHistory(bridgeId = 1) {
-  const res = await apiFetch(`${API_BASE}/history?bridge_id=${bridgeId}`);
+  const res = await apiFetch(`${API_BASE}/api/history?bridge_id=${bridgeId}`);
   if (!res.ok) throw new Error(`/api/history ${res.status}`);
   return res.json();
 }
 
 export async function fetchAnomaly(bridgeId = 1) {
-  const res = await apiFetch(`${API_BASE}/anomaly?bridge_id=${bridgeId}`);
+  const res = await apiFetch(`${API_BASE}/api/anomaly?bridge_id=${bridgeId}`);
   if (!res.ok) throw new Error(`/api/anomaly ${res.status}`);
   return res.json();
 }
 
 export async function fetchPredict(bridgeId = 1) {
-  const res = await apiFetch(`${API_BASE}/predict?bridge_id=${bridgeId}`);
+  const res = await apiFetch(`${API_BASE}/api/predict?bridge_id=${bridgeId}`);
   if (!res.ok) throw new Error(`/api/predict ${res.status}`);
   return res.json();
 }
 
 export async function fetchHealthHistory(bridgeId = 1) {
-  const res = await apiFetch(`${API_BASE}/health/history?bridge_id=${bridgeId}`);
+  const res = await apiFetch(`${API_BASE}/api/health/history?bridge_id=${bridgeId}`);
   if (!res.ok) throw new Error(`/api/health/history ${res.status}`);
   return res.json();
 }
 
 export async function fetchMaintenanceAssignments() {
-  const res = await apiFetch(`${API_BASE}/maintenance/assignments`);
+  const res = await apiFetch(`${API_BASE}/api/maintenance/assignments`);
   if (!res.ok) throw new Error(`/api/maintenance/assignments ${res.status}`);
   return res.json();
 }
 
 export async function createMaintenanceAssignment(payload) {
-  const res = await apiFetch(`${API_BASE}/maintenance/assignments`, {
+  const res = await apiFetch(`${API_BASE}/api/maintenance/assignments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -78,7 +78,7 @@ export async function createMaintenanceAssignment(payload) {
 }
 
 export async function updateMaintenanceAssignment(assignmentId, payload) {
-  const res = await apiFetch(`${API_BASE}/maintenance/assignments/${assignmentId}`, {
+  const res = await apiFetch(`${API_BASE}/api/maintenance/assignments/${assignmentId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -88,7 +88,7 @@ export async function updateMaintenanceAssignment(assignmentId, payload) {
 }
 
 export async function deleteMaintenanceAssignment(assignmentId) {
-  const res = await apiFetch(`${API_BASE}/maintenance/assignments/${assignmentId}`, {
+  const res = await apiFetch(`${API_BASE}/api/maintenance/assignments/${assignmentId}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error(`/api/maintenance/assignments/${assignmentId} ${res.status}`);
@@ -96,14 +96,14 @@ export async function deleteMaintenanceAssignment(assignmentId) {
 }
 
 export async function fetchMaintenanceEngineers() {
-  const res = await apiFetch(`${API_BASE}/maintenance/engineers`);
+  const res = await apiFetch(`${API_BASE}/api/maintenance/engineers`);
   if (!res.ok) throw new Error(`/api/maintenance/engineers ${res.status}`);
   return res.json();
 }
 
 export async function downloadReport(bridgeId, bridgeName) {
   const token = localStorage.getItem('bridgeiq_token');
-  const urlWithToken = `${API_BASE}/report?bridge_id=${bridgeId}${token ? `&token=${token}` : ''}`;
+  const urlWithToken = `${API_BASE}/api/report?bridge_id=${bridgeId}${token ? `&token=${token}` : ''}`;
   
   const res = await apiFetch(urlWithToken);
   if (!res.ok) throw new Error(`/api/report ${res.status}`);
@@ -120,7 +120,7 @@ export async function downloadReport(bridgeId, bridgeName) {
 }
 
 export async function runAgentInspect(bridgeId, bridgeName) {
-  const res = await apiFetch(`${API_BASE}/agent/inspect`, {
+  const res = await apiFetch(`${API_BASE}/api/agent/inspect`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bridge_id: bridgeId, bridge_name: bridgeName }),
@@ -130,7 +130,7 @@ export async function runAgentInspect(bridgeId, bridgeName) {
 }
 
 export async function downloadAgentInspectPDF(inspectionResult) {
-  const res = await apiFetch(`${API_BASE}/agent/inspect/pdf`, {
+  const res = await apiFetch(`${API_BASE}/api/agent/inspect/pdf`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -159,7 +159,7 @@ export async function downloadAgentInspectPDF(inspectionResult) {
 }
 
 export async function fetchXaiExplanation(bridgeId) {
-  const res = await apiFetch(`${API_BASE}/xai/explain?bridge_id=${bridgeId}`);
+  const res = await apiFetch(`${API_BASE}/api/xai/explain?bridge_id=${bridgeId}`);
   if (!res.ok) throw new Error(`/api/xai/explain ${res.status}`);
   return res.json();
 }

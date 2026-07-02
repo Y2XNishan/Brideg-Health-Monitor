@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 // Approximation coordinates of India border for linear projection SVG path
 const BORDER_POINTS = [
   { lat: 37.0, lng: 74.5 },
@@ -194,7 +196,7 @@ export default function IndiaNetwork({ onSelectBridge, setCurrentPage }) {
 
   // ── Fetch Bridges on Mount ──────────────────
   useEffect(() => {
-    fetch('/api/india/bridges')
+    fetch(`${API_BASE}/api/india/bridges`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
         return res.json();
@@ -212,7 +214,7 @@ export default function IndiaNetwork({ onSelectBridge, setCurrentPage }) {
 
   // ── Fetch and Poll live bridge activations ──
   const fetchLiveBridges = () => {
-    fetch('/api/bridges')
+    fetch(`${API_BASE}/api/bridges`)
       .then((res) => res.json())
       .then((data) => {
         setLiveBridgeIds(new Set(data.map((b) => b.id)));
@@ -1105,7 +1107,7 @@ export default function IndiaNetwork({ onSelectBridge, setCurrentPage }) {
                       try {
                         setActivating(true);
                         setModalError('');
-                        const res = await fetch('/api/bridges/deactivate', {
+                        const res = await fetch(`${API_BASE}/api/bridges/deactivate`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ bridge_id: modalBridge.id })
@@ -1149,7 +1151,7 @@ export default function IndiaNetwork({ onSelectBridge, setCurrentPage }) {
                     const timeoutId = setTimeout(() => controller.abort(), 5000);
                     
                     try {
-                      const res = await fetch('/api/bridges/activate', {
+                      const res = await fetch(`${API_BASE}/api/bridges/activate`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ bridge_id: modalBridge.id }),

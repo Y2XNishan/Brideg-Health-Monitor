@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 import ReactMarkdown from 'react-markdown';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, 
          Tooltip, Legend, ReferenceLine, ResponsiveContainer } from 'recharts';
@@ -58,7 +60,7 @@ export default function SurvivalAnalysis() {
     setError(null);
     try {
       const token = localStorage.getItem('bridgeiq_token');
-      const response = await fetch('/api/survival/all', {
+      const response = await fetch(`${API_BASE}/api/survival/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -104,7 +106,7 @@ export default function SurvivalAnalysis() {
 
     try {
       const token = localStorage.getItem('bridgeiq_token');
-      const response = await fetch(`/api/survival/predict?bridge_id=${bridgeId}`, {
+      const response = await fetch(`${API_BASE}/api/survival/predict?bridge_id=${bridgeId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

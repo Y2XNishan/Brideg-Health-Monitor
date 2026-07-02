@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 import {
   fetchBridges,
   fetchLive,
@@ -106,7 +108,7 @@ export default function Dashboard({ onSelectBridge, setCurrentPage }) {
     async function loadBridges() {
       try {
         // We fetch the full India list to support the 58 bridges
-        const res = await fetch('/api/india/bridges', {
+        const res = await fetch(`${API_BASE}/api/india/bridges`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1328,7 +1330,7 @@ function XaiExplanationModal({ bridge, token, onClose }) {
         setLoading(true);
         setError(null);
         const token = localStorage.getItem('bridgeiq_token');
-        const response = await fetch(`/api/xai/explain?bridge_id=${bridge.id}`, {
+        const response = await fetch(`${API_BASE}/api/xai/explain?bridge_id=${bridge.id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
