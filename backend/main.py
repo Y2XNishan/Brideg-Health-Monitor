@@ -250,9 +250,14 @@ try:
 except ImportError:
     check_and_send_alert = None
 
-# Commented out crack detection image analysis as it is not needed on Render
-# from crack_detection import analyze_crack_image
-analyze_crack_image = None
+# Re-enabled: crack_detection.py only imports groq + PIL (both in requirements.txt).
+# No heavy ML dependencies whatsoever.
+try:
+    from crack_detection import analyze_crack_image
+    logger.info("Crack detection module loaded successfully")
+except Exception as e:
+    logger.warning(f"Could not load crack detection module: {e}")
+    analyze_crack_image = None
 
 # Re-enabled: agent.py only imports groq + rag.retrieve_context, both safe.
 try:
@@ -2782,9 +2787,13 @@ async def detect_crack(
         raise HTTPException(status_code=400, detail="Image must be under 10MB")
     image_bytes = await file.read()
     if analyze_crack_image is None:
-        raise HTTPException(status_code=500, detail="Crack detection module is not available")
-    result = analyze_crack_image(image_bytes, bridge_id, bridge_name)
-    return result
+        raise HTTPException(status_code=503, detail="Crack detection module failed to load. Check server logs.")
+    try:
+        result = analyze_crack_image(image_bytes, bridge_id, bridge_name)
+        return result
+    except Exception as e:
+        logger.exception(f"Crack detection failed for bridge {bridge_id} ({bridge_name}): {e}")
+        raise HTTPException(status_code=500, detail=f"Crack detection failed: {e}")
 
 @app.get("/api/crack-detection/history/{bridge_id}")
 async def get_crack_history(bridge_id: int, user=Depends(require_role(["admin", "engineer", "viewer"]))):
