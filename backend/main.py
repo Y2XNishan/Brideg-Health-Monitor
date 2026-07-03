@@ -226,18 +226,24 @@ except ImportError:
     engineer_features_last_row = None
     SENSORS = ['water_level', 'vibration', 'strain', 'crack_gap']
 
-# Commented out chat router since it transitively imports torch/transformers/peft/RAG
-# from backend.chat import router as chat_router
-from fastapi import APIRouter
-chat_router = APIRouter()
+# Re-enabled: chat.py is safe to import — it uses groq (in requirements.txt)
+# and only loads torch/peft in a background thread with try/except.
+# RAG (sentence-transformers/faiss) is lazily loaded and degrades gracefully.
+try:
+    from backend.chat import router as chat_router
+    logger.info("Chat router loaded successfully")
+except Exception as e:
+    logger.warning(f"Could not load chat router, using fallback: {e}")
+    from fastapi import APIRouter
+    chat_router = APIRouter()
 
-@chat_router.get("/api/chat/model-info")
-async def chat_model_info_fallback():
-    raise HTTPException(status_code=503, detail="Chat service is unavailable on offline Render deployment.")
+    @chat_router.get("/api/chat/model-info")
+    async def chat_model_info_fallback():
+        raise HTTPException(status_code=503, detail=f"Chat service unavailable: {e}")
 
-@chat_router.post("/api/chat")
-async def chat_fallback():
-    raise HTTPException(status_code=503, detail="Chat service is unavailable on offline Render deployment.")
+    @chat_router.post("/api/chat")
+    async def chat_fallback():
+        raise HTTPException(status_code=503, detail=f"Chat service unavailable: {e}")
 
 try:
     from backend.telegram_alerts import check_and_send_alert
@@ -248,9 +254,13 @@ except ImportError:
 # from crack_detection import analyze_crack_image
 analyze_crack_image = None
 
-# Commented out agent as it transitively loads RAG/sentence-transformers
-# from backend.agent import run_inspection_agent
-run_inspection_agent = None
+# Re-enabled: agent.py only imports groq + rag.retrieve_context, both safe.
+try:
+    from backend.agent import run_inspection_agent
+    logger.info("Agent inspection module loaded successfully")
+except Exception as e:
+    logger.warning(f"Could not load agent module: {e}")
+    run_inspection_agent = None
 
 try:
     from backend.xai import explain_anomaly
@@ -2800,9 +2810,13 @@ async def agent_inspect(req: dict, user=Depends(require_role(["admin", "engineer
     bridge_id = req.get("bridge_id", 1)
     bridge_name = req.get("bridge_name", "Unknown Bridge")
     if run_inspection_agent is None:
-        raise HTTPException(status_code=500, detail="AI inspection agent is not available")
-    result = await run_inspection_agent(bridge_id, bridge_name)
-    return result
+        raise HTTPException(status_code=503, detail="AI inspection agent module failed to load. Check server logs.")
+    try:
+        result = await run_inspection_agent(bridge_id, bridge_name)
+        return result
+    except Exception as e:
+        logger.exception(f"Agent inspect failed for bridge {bridge_id} ({bridge_name}): {e}")
+        raise HTTPException(status_code=500, detail=f"Inspection failed: {e}")
 
 @app.post("/api/agent/inspect/pdf")
 def agent_inspect_pdf(req: AgentInspectPDFRequest, user = Depends(get_current_user)):
